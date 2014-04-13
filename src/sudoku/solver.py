@@ -23,12 +23,11 @@ class Solver(object):
 			print "Initial: " , initialRemainingCells
 			Solver.checkUniquePossibilities(self.board)
 			
-			Solver.startGuess(self.board)
-			
 			finalRemainingCells = len(Solver.getRemainingCells(self.board))
 			print "Final: " , finalRemainingCells
 			if initialRemainingCells == finalRemainingCells:
 				break
+		Solver.startGuess(self.board)
 	
 	@staticmethod
 	def assertValidState(board):
@@ -47,7 +46,11 @@ class Solver(object):
 			res = [x.value for x in board.getCellsInGrid(num) if x.value]
 			if len(set(res)) != len(res):
 				raise InvalidSudokuStateError("Grid number:%d"%num)
-				
+		
+		for row in board.cells:
+			for cell in row:
+				if cell.value is None and len(cell.options) == 0:
+					raise InvalidSudokuStateError("Empty Options:" +repr(cell))
 	
 	@staticmethod
 	def reCalculatePossibilities(board):
@@ -153,7 +156,7 @@ class Solver(object):
 				Solver.removePossibilities(affectedCells, possibValue)
 				fixedCells.append(cell)
 		return fixedCells
-		
+	
 	@staticmethod
 	def removePossibilities(cells, value):
 		for cell in cells:
@@ -164,7 +167,37 @@ class Solver(object):
 
 	@staticmethod
 	def startGuess(board):
+		print "Guessing.."
 		boardCopy = deepcopy(board)
+		guessCell = Solver.getGuessableCell(boardCopy)
+		if not guessCell:
+			return
+		options = list(guessCell.options) #Size = 2
+		guessCell.value = options[0]
+		guessCell.options = set()
+		solver = Solver(boardCopy)
+		try:
+			solver.solve()
+			board.cells = boardCopy.cells
+		except InvalidSudokuStateError, e:
+			print "Backtracking.."
+			boardCopy = deepcopy(board)
+			guessCell = Solver.getGuessableCell(boardCopy)
+			options = list(guessCell.options) #Size = 2
+			guessCell.value = options[1]
+			guessCell.options = set()
+			solver = Solver(boardCopy)
+			try:
+				solver.solve()
+				board.cells = boardCopy.cells
+			except InvalidSudokuStateError, e:
+				raise
 		
 		
+		
+	@staticmethod
+	def getGuessableCell(board):
+		remainingCells = Solver.getRemainingCells(board)
+		guessableCells = [x for x in remainingCells if len(x.options)==2]
+		return guessableCells[0] if guessableCells else None
 		
